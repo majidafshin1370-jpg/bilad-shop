@@ -11,6 +11,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Find project folder
+        id: find
+        run: |
+          echo "Top level of the repository:"
+          ls -la
+          f=$(find . -name settings.gradle.kts -not -path './.git/*' | head -n 1)
+          if [ -z "$f" ]; then
+            echo "::error::settings.gradle.kts not found - project files were not uploaded correctly"
+            exit 1
+          fi
+          dir=$(dirname "$f")
+          echo "Project folder: $dir"
+          ls -la "$dir"
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -21,9 +36,10 @@ jobs:
           gradle-version: 8.9
 
       - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace
+        working-directory: ${{ steps.find.outputs.dir }}
+        run: gradle :app:assembleDebug --console=plain
 
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ steps.find.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
